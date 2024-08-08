@@ -13,7 +13,7 @@ they are fetched through the gmapi interface e.g
       gmElements gme;
 
       gme.designateFamily(" y.10 top.35", {
-         "v.checkbox name='SomeCheckBox'", "v.input input.size='500' name='SomeInput'", ...."
+         "v.checkbox name='SomeCheckBox'", "v.input input.size='500' name='SomeInput'" 
       });
  
 
