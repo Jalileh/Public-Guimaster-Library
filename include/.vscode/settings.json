@@ -1,0 +1,18 @@
+{
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/CVS": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true
+  },
+  "hide-files.files": [],
+  "files.associations": {
+    "*.cpp": "cpp",
+    "*.rh": "cpp",
+    "filesystem": "cpp",
+    "xstring": "cpp",
+    "format": "cpp"
+  }
+}

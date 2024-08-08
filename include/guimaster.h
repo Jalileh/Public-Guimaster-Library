@@ -1,0 +1,871 @@
+#pragma once
+#define GUIMASTER_H
+
+
+#include "../src/h/coreGui.h"
+
+namespace gma {
+   class gmapi;
+}
+namespace gmc {
+   namespace classes {
+      class MWCoreGui;
+      class Manager_MemoryUi;
+   };   // namespace classes
+
+   namespace globals {};
+}   // namespace gmc
+
+class gmElements;
+
+namespace gmcg = gmc::globals;
+
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+////
+////  @s.callback Syncing with coregui operations
+////
+////
+////
+////
+
+class gmc::classes::MWCoreGui {
+ public:
+   MWCoreGui() {
+      cg_ready_status = false;
+   }
+
+   noret SetCoreGuiPointer (cg::pguiMaster Dependancy) {
+      if (cg_ready_status > 0) {
+         cle_private("We are setting coregui twice!", "GMMiddleWare_coregui");
+      }
+
+      cg_ready_status = 1;
+      clmsg("cg-api has been provided", "GMMiddleWare_coregui");
+
+      coreguiLib = Dependancy;
+   }
+
+   cg::pguiMaster getCG () {
+      if (coreguiLib == nullptr) {
+         cle_private(
+            "attempted to retrieve coregui-api when it never was provided!",
+            "GMMiddleWare_coregui"
+         );
+      }
+      return coreguiLib;
+   }
+
+   imgui_fptr aptr_ getImfptr () {
+      return getCG()->Misc.imfptr;
+   }
+
+   bool CallbacksDone () {
+      if (cg_ready_status > 1) {
+         return true;
+      }
+      else if (coreguiLib->statusInfo.init->callbackDone) {
+         cg_ready_status = 2;
+         return true;
+      }
+      else {
+         return false;
+      }
+   }
+
+ private:
+   int cg_ready_status;
+   singleton_member cg::pguiMaster coreguiLib = nullset;
+   friend class gma::gmapi;
+};
+
+namespace gmc::globals {
+   // middleware for coregui
+   tag_global static classes::MWCoreGui MiddleWare_CG;
+}   // namespace gmc::globals
+
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+////
+////  @s.UiMemory
+////
+////  ui-data implementation
+////
+////
+
+class uiMemory_id {
+ public:
+   astr Name;
+   astr Group;
+   bool HasGroup;
+
+   uiMemory_id(astr IN_Name, astr OPT_Group = "") : Name(IN_Name) {
+      Group = OPT_Group;
+
+      HasGroup = (Group.isNotNullOrEmpty()) ? true : false;
+   }
+};
+
+singleton_member List< uiMemory_id > _gmIdentifierList;
+class glob_identifiers {
+ public:
+   static uiMemory_id *CreateUiIdentifierData (astr Name, astr Group) {
+      for (auto _ref identity : _gmIdentifierList) {
+         if (identity.Name == Name) {
+            return _ref identity;
+         }
+      }
+      // no identity was found so we make a new one
+
+      return _ref _gmIdentifierList.addNew({Name, Group})->data;
+   }
+
+   auto &GetCoreList () {
+      return _gmIdentifierList;
+   }
+
+ private:
+};
+
+
+template < typename UIData >
+class uiMemory {
+ public:
+   enum class ReferenceVisual {
+      checkbox,
+      button,
+      text,
+      list,
+      slider_1,
+      slider_2,
+      input
+   };
+
+   uiMemory_id *identity;
+
+   ReferenceVisual type;
+   UIData uidata;
+};
+
+template < typename UIData >
+class UiMemory_Associater : private glob_identifiers {
+ private:
+   auto CreateNewUIMemory (astr &UiName, bool *bWasCreated = 0) {
+      // cl(UiName.prepend("Created new ui memory link -> "),
+      //   "UiMemory_Associater");
+
+      auto NewUiMemory = list.getNewObject();
+
+      // link the other uimem identifier / also creates it here if not exist
+
+      NewUiMemory->identity = this->CreateUiIdentifierData(UiName, "");
+
+      NewUiMemory->identity->Name = UiName;
+
+      if (bWasCreated)
+         deref bWasCreated = true;
+
+      return NewUiMemory;
+   }
+
+ public:
+   nodem< uiMemory< UIData > > list;
+
+ public:
+   uiMemory< UIData > aptr_ Find (astr UiName, bool CalledbyGmElementsImpl, bool *bWasCreated = 0) {
+      if (!list.occupied() and CalledbyGmElementsImpl) {
+         return CreateNewUIMemory(UiName, bWasCreated);
+      }
+
+      uiMemory< UIData > *UiDataFound;
+      if (list.for_each_await([&] (uiMemory< UIData > &data, auto &response) {
+             if (!data.identity->Name)
+                return code::Unresolved;
+             else if (data.identity->Name == UiName) {
+                response = &data;
+                return code::Complete;
+             }
+             else if (data.identity->Name.pos(0) == '#') {
+                astr hashtag(data.identity->Name.str);
+
+                if (hashtag.ExtractWord("##\a") == UiName) {
+                   response = &data;
+                   return code::Complete;
+                }
+             }
+             return code::Unresolved;
+          },
+                              UiDataFound) == code::Complete) {
+         return UiDataFound;
+      }
+
+      if (CalledbyGmElementsImpl == true) {
+         return CreateNewUIMemory(UiName, bWasCreated);
+      }
+      else if (CalledbyGmElementsImpl == false and gmcg::MiddleWare_CG.CallbacksDone() == true) {
+
+         cle_public(UiName.prepend("none-existent reference -> "), "ui-memory")
+      }
+
+      cle_public("dog..", "coregui thread sync failure");
+
+      return (uiMemory< UIData > aptr_)nullset;
+   }
+
+   // this is for unrestricted creations of uidata regardless of their gui state being ran
+   uiMemory< UIData > aptr_ Find_await (astr UiName, bool *bWasCreated = 0) {
+      if (!list.occupied()) {
+
+
+         return CreateNewUIMemory(UiName, bWasCreated);
+      }
+
+      uiMemory< UIData > *UiDataFound;
+      if (list.for_each_await([&] (uiMemory< UIData > &data, auto &response) {
+             if (!data.identity->Name)
+                return code::Unresolved;
+             else if (data.identity->Name == UiName) {
+                response = &data;
+                return code::Complete;
+             }
+             else if (data.identity->Name.pos(0) == '#') {
+                astr hashtag(data.identity->Name.str);
+
+                if (hashtag.ExtractWord("##\a") == UiName) {
+                   response = &data;
+                   return code::Complete;
+                }
+             }
+             return code::Unresolved;
+          },
+                              UiDataFound) == code::Complete) {
+         return UiDataFound;
+      }
+      else {
+         // create unrestricted from anywhere
+         return CreateNewUIMemory(UiName, bWasCreated);
+      }
+   }
+};
+
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+////
+////  @s.primitive data
+////      - structures used by ui
+////
+////
+////
+////
+
+class gmVec2 {
+ public:
+    gmVec2() :  x(0),y(0){};
+        gmVec2(float X, float Y) :  x(X),y(Y){};
+    float  x, y;
+};
+
+class gmBoolean {
+ public:
+   bool boolean;
+   ulong InteractionTimes;
+};
+
+class gmVec3 {
+ public:
+   gmVec3() : x(0), y (0) , z(0){};
+   gmVec3(float X, float Y, float Z) :  x(X),y(Y), z(Z){};
+   float x, y, z;
+};
+struct gmStrings {
+   ulong length;
+   pchar string;
+};
+
+
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+////
+////  @s.Manager of data-ui implementation
+////
+////  lowest form of interaction with said data should happen here.
+////
+////
+
+class gmc::classes::Manager_MemoryUi {
+ public:
+   UiMemory_Associater< gmVec3 > modifiers_vector3;
+   UiMemory_Associater< gmVec2 > modifiers_vector2;
+   UiMemory_Associater< float > modifiers_float;
+   UiMemory_Associater< gmBoolean > click;
+   UiMemory_Associater< gmStrings > input;
+   UiMemory_Associater< uiMemory_id > identifiers;
+
+   bool clicked (astr ButtonName, bool ResetAfterCheck = true) {
+      auto button = click.Find(ButtonName, false);
+
+      if (button->uidata.boolean == true) {
+         // this is set to false because of how imgui buttons work
+         if (ResetAfterCheck)
+            button->uidata.boolean = false;
+
+         return true;   // we tell them it was clicked
+      }
+      else {
+         return false;
+      }
+   }
+
+   bool Enabled (astr ToggleName) {
+      auto button = click.Find(ToggleName, false);
+      return button->uidata.boolean;
+   }
+
+   bool clicked_await (astr ButtonName, bool ResetAfterCheck = true) {
+      auto button = click.Find_await(ButtonName);
+
+      if (button->uidata.boolean == true) {
+         // this is set to false because of how imgui buttons work
+         if (ResetAfterCheck)
+            button->uidata.boolean = false;
+
+         return true;   // we tell them it was clicked
+      }
+      else {
+         return false;
+      }
+   }
+
+   bool Enabled_await (astr ToggleName) {
+      auto button = click.Find_await(ToggleName);
+      return button->uidata.boolean;
+   }
+
+   Manager_MemoryUi() {
+   }
+   ~Manager_MemoryUi() {
+   }
+
+ protected:
+   friend class gmElements;
+};
+
+namespace gmc::globals {
+   tag_global static gmc::classes::Manager_MemoryUi handlerUiMem;
+
+}   // namespace gmc::globals
+
+
+class gmComponent {
+ public:
+   astr family_base;
+   noret resetFusion () {
+      fusion = nullsets;
+   }
+
+   astr TextParser (astr description) {
+
+      astr TextGraph = description.ExtractMultiWordInTag("text='", "'");
+      return (TextGraph.isNotNullOrEmpty()) ? TextGraph : description.ExtractMultiWordInTag("<text>", "</text>");
+   }
+
+
+   noret ifNeed_FontChange (astr ref_ desc) {
+      astr font = desc.ExtractWord("\bfont.\a");
+      if (font.NotNull()) {
+         gmcg::MiddleWare_CG.getCG()->Misc.FontSet(font);
+      }
+      else if (baseFont) {
+         gmcg::MiddleWare_CG.getCG()->Misc.FontSet(baseFont);
+      }
+   }
+
+   bool ifNeed_Padding (astr ref_ desc) {
+      astr padding_x = desc.ExtractWord("\bpadx.\a");
+      astr padding_y = desc.ExtractWord("\bpady.\a");
+
+      if (this->family_base.match("\bpadx"))
+         padding_x = family_base.ExtractWord("\bpadx.\a");
+
+      if (this->family_base.match("\bpady"))
+         padding_y = family_base.ExtractWord("\bpady.\a");
+
+
+      if (padding_x.NotNull() or padding_y.NotNull()) {
+         gmcg::MiddleWare_CG.getCG()->Misc.ApplyPadRound(padding_x, padding_y, false);
+         return true;
+      }
+      return false;
+   }
+   bool ifNeed_Rounding (astr ref_ desc) {
+      astr rounding = desc.ExtractWord("\brounding.\a");
+      rounding = (rounding.NotNull()) ? rounding : family_base.ExtractWord("\brounding.\a");
+      if (rounding.NotNull()) {
+         gmcg::MiddleWare_CG.getCG()->Misc.ApplyPadRound(rounding, 0, true);
+         return true;
+      }
+      return false;
+   }
+
+   noret ifNeed_Positioning (decs::Motion motion) {
+      if (motion.x != 0 or motion.y != 0) {
+         if (motion.y == 0)
+            motion.y = gmcg::MiddleWare_CG.getImfptr()->GetCursorPos().y;
+         else if (motion.x == 0)
+            motion.x = gmcg::MiddleWare_CG.getImfptr()->GetCursorPos().x;
+
+         gmcg::MiddleWare_CG.getCG()->Misc.imfptr->SetCursorPos(
+            {motion.x, motion.y}
+         );
+      }
+   }
+
+   noret ifNeed_BodySize () {
+      auto body = fusion.m_GetBodyMass();
+
+      if (body.width != null) {
+         gmcg::MiddleWare_CG.getCG()->Misc.imfptr->SetNextItemWidth(body.width);
+      }
+   }
+
+   //////////////////////////////////////////////////////////////////////
+   //////////////////////////////////////////////////////////////////////
+   ////
+   ////  @s.Widget Calls
+   ////
+   ////
+   ////
+   ////
+
+   noret el_Button () {
+      auto Button = gmcg::handlerUiMem.click.Find(Name, true);
+      auto body = fusion.m_GetBodyMass();
+      if (gmcg::MiddleWare_CG.getCG()->Misc.imfptr->Button(
+             Name,
+             {body.width, body.height}
+          )) {
+         Button->uidata.boolean = true;
+         astr count = Button->uidata.InteractionTimes;
+
+         cl(Button->identity->Name.append(" Was Pressed times : "), count);
+         Button->uidata.InteractionTimes++;
+      }
+   }
+
+   noret el_checkbox () {
+      auto checkboxState = gmcg::handlerUiMem.click.Find(Name, true);
+      gmcg::MiddleWare_CG.getCG()->Misc.imfptr->Checkbox(
+         Name,
+         ref_ checkboxState->uidata.boolean
+      );
+   }
+
+   noret el_input (astr elementDescription) {
+      auto inputs = gmcg::handlerUiMem.input.Find(Name, true);
+
+      if (inputs->uidata.string == nullptr) {
+
+         astr LengthInput = elementDescription.ExtractWord("input.size.\a");
+         inputs->uidata.length = (LengthInput.NotNull() == true) ? LengthInput.operator int() : 400;
+
+         inputs->uidata.string = allocnull< pchar >(inputs->uidata.length);
+      }
+
+
+      gmcg::MiddleWare_CG.getCG()
+         ->Misc.imfptr->InputTextMultiline(inputs->identity->Name, inputs->uidata.string, inputs->uidata.length, {this->fusion.m_GetBodyMass().width, fusion.m_GetBodyMass().height}, 0, 0, 0);
+   }
+
+   noret el_slider (astr ed) {
+
+      bool wasCreated = false;
+
+      auto slider = gmcg::handlerUiMem.modifiers_vector2.Find(Name, true, _ref wasCreated);
+
+      // set the base values once
+      if (wasCreated) {
+         float baseValue = ed.ExtractWord("\bbase.\a");
+         if (baseValue)
+            slider->uidata.x = baseValue;
+      }
+
+      float min = ed.ExtractWord("\bmin.\a");
+      float max = ed.ExtractWord("\bmax.\a");
+
+      gmcg::MiddleWare_CG.getCG()->Misc.imfptr->SliderFloat(
+         slider->identity->Name,
+         ref_ slider->uidata.x,
+         min,
+         max,
+         0,
+         0
+      );
+   }
+   
+   noret el_slider_float (astr ed) {
+
+      bool wasCreated = false;
+
+      auto slider = gmcg::handlerUiMem.modifiers_float.Find(Name, true, _ref wasCreated);
+
+      // set the base values once
+      if (wasCreated) {
+         float baseValue = ed.ExtractWord("\bbase.\a");
+         if (baseValue)
+            slider->uidata = baseValue;
+      }
+
+      float min = ed.ExtractWord("\bmin.\a");
+      float max = ed.ExtractWord("\bmax.\a");
+
+      gmcg::MiddleWare_CG.getCG()->Misc.imfptr->SliderFloat(
+         slider->identity->Name,
+         ref_ slider->uidata,
+         min,
+         max,
+         0,
+         0
+      );
+   }
+
+   //////////////////////////////////////////////////////////////////////
+   //////////////////////////////////////////////////////////////////////
+   ////
+   ////  @s.Pending execution
+   ////
+   ////
+   ////
+   ////
+
+   noret TranslateVisual (astr elementDescription) {
+
+      ifNeed_FontChange(elementDescription);
+      ifNeed_Positioning(fusion.m_GetMotion());
+      auto active_pad = ifNeed_Padding(elementDescription);
+      auto active_round = ifNeed_Rounding(elementDescription);
+
+      switch (visualType.Gethash()) {
+         case hashstr("text"): {
+            auto TextSource = TextParser(elementDescription);
+            gmcg::MiddleWare_CG.getCG()->Misc.imfptr->Text(TextSource.cstr());
+            break;
+         }
+         case hashstr("button"): {
+            el_Button();
+            break;
+         }
+
+         case hashstr("input"): {
+            el_input(elementDescription);
+            break;
+         }
+         case hashstr("slider"): {
+            el_slider(elementDescription);
+            break;
+         }
+         case hashstr("slider1"): {
+            el_slider_float(elementDescription);
+            break;
+         }
+
+         case hashstr("checkbox"): {
+            el_checkbox();
+            break;
+         }
+      }
+
+      if (active_pad) {
+         gmcg::MiddleWare_CG.getCG()->Misc.EndPadRound();
+      }
+      if (active_round) {
+         gmcg::MiddleWare_CG.getCG()->Misc.EndPadRound();
+      }
+   }
+
+ public:
+   decs::FusionObject fusion;
+   ulong baseFont = unset;
+   astr visualType;
+   astr Name;
+};
+
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+////
+////  @s.Family designator
+////
+////
+////
+////
+
+class gmFamily {
+ public:
+   float gap;
+   float top;
+   decs::Body body;
+   astr family_base;
+   Fusion::decs::Motion baseLocation;
+   bool isDesignated = false;
+
+ public:
+   noret Designation (astr ref_ fam, gmComponent ref_ component) {
+      gap = fam.ExtractWord("\bgap.\a");
+      top = fam.ExtractWord("\btop.\a");
+
+
+      cg::Fusion::Parse::Bounds(fam, this->body);
+
+
+      family_base = fam;
+      baseLocation.x = fam.ExtractWord("\bx.\a");
+      baseLocation.y = fam.ExtractWord("\by.\a");
+      component.baseFont = fam.ExtractWord("\bfont.\a");
+
+      isDesignated = true;
+   }
+
+   noret component_StageForFamily (gmComponent ref_ component) {
+
+
+      component.fusion.orient.Motion.x += baseLocation.x;
+      component.fusion.orient.Motion.y += baseLocation.y;
+
+      // component.fusion.orient.Motion.x += gap;
+      // component.fusion.orient.Motion.y += top;
+
+      component.fusion.bounds.body.height += this->body.height;
+      component.fusion.bounds.body.width += this->body.width;
+   }
+
+   noret component_PrepareNext (gmComponent ref_ component) {
+
+
+      if (gap != 0) {
+         baseLocation.x += gap;
+      }
+
+      if (top != 0) {
+         baseLocation.y += top;
+      }
+   }
+};
+// used within canvas callbacks or gl
+class gmElements {
+ public:
+   //  top gap and much more : draw within -> visualProcess_Draw for cleaner code
+   inline gmElements designateFamily (astr Family, nodem< astr > VisualProcess_draw = {}) const {
+      gmElements gm_family(Family);
+
+      if (VisualProcess_draw.occupied()) {
+         for (auto visuals : VisualProcess_draw) {
+            gm_family.draw(visuals);
+         }
+      }
+      return gm_family;
+   }
+
+
+   inline void operator=(astr elementDescription) {
+      this->draw(elementDescription);
+   }
+   noret operator=(vector< astr > elements) {
+      for (auto element : elements) {
+         draw(element);
+      }
+   }
+   noret draw (astr _elementDescription) {
+
+      astr elementDescription = _elementDescription.prepend(" ");   // some fucked up bug bro
+
+      cg::Fusion::Parse::Bounds(elementDescription, component.fusion.bounds.body);
+      component.fusion.parse_Position(elementDescription);
+      component.family_base = families.family_base;
+
+      if (families.isDesignated) {
+         families.component_StageForFamily(component);
+      }
+
+      astr V_Token;
+      if (elementDescription.StartsWith("v.")) {
+         V_Token = "v.";
+      }
+      else {
+         elementDescription.match({"\bvisual.", "\bv."}, &V_Token);
+      }
+
+
+      // whats causing the fucking cle?
+      auto Process_visual_arg = elementDescription.ExtractWord(V_Token + "\a");
+      if (ProcessVisual_OK(Process_visual_arg, elementDescription)) {
+
+
+         component.Name = extractNameTag(elementDescription);
+         component.TranslateVisual(elementDescription);
+      }
+
+
+      if (families.isDesignated) {
+
+         families.component_PrepareNext(component);
+      }
+   }
+
+ private:
+   astr extractNameTag (astr &PossibleName) {
+      // wtf how and will this even work lmao
+
+
+      astr HasMultiWordName = PossibleName.ExtractMultiWordInTag("name='", "'");
+      return (HasMultiWordName.isNotNullOrEmpty()) ? HasMultiWordName : PossibleName.ExtractWord("\bname.\a");
+   }
+
+   gmFamily families = unsets;
+
+   noret createFamily (astr ref_ fam) {
+      families.Designation(fam, component);
+   }
+
+   bool ProcessVisual_OK (astr Name, astr &Description) {
+      astr Available[] =
+         {"checkbox", "button", "list", "slider2", "slider", "text", "input", "slider1"};
+
+      bool result = false;
+      for (auto items : Available) {
+         if (items == Name) {
+            result = true;
+            break;
+         }
+      }
+
+      if (result) {
+         component.visualType = Name;
+         // memory is made here
+
+         glob_identifiers::CreateUiIdentifierData(extractNameTag(Description), Description.ExtractWord("group.\a"));
+      }
+      else {
+         cle_public(Name.prepend(" argument was : "), "gmElements.visualType error");
+      }
+      return result;
+   }
+
+ private:
+   gmComponent component;
+
+ public:
+ public:
+   gmElements() {
+   }
+   gmElements(astr designateFamily) {
+      createFamily(designateFamily);
+   }
+   ~gmElements() {
+   }
+};
+
+
+//////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+////
+////  @s.GL interface
+////
+////
+////
+////
+
+struct gmcolor {
+   constexpr gmcolor(float red, float green, float blue) {
+      if (
+         red > 20 or green > 20 or blue > 20
+      ) {
+         r = (red / 255.0f);
+         g = (green / 255.0f);
+         b = (blue / 255.0f);
+      }
+      else {
+         r = red, g = green, b = blue;
+      }
+   }
+   float r, g, b;
+};
+class gmGL {
+ public:
+   gmGL() {};
+
+   enum class mode : uint {
+      line_loop = GL_LINE_LOOP,
+      line_linear = GL_LINES,
+      line_strip = GL_LINE_STRIP,
+      points = GL_POINTS,
+
+      quads = GL_QUADS,
+      quad_strip = GL_QUAD_STRIP
+
+   };
+
+
+ private:
+   singleton_member OpenGl_fptr _ptr gl = unset;
+   friend class gma::gmapi;
+
+ public:
+   static auto _abstract () {
+      return gl;
+   }
+
+
+   class n_vertex {
+    public:
+      template < typename T >
+      void VertexV2 (T x, T y) {
+
+         gl->Vertex2(x, y);
+      }
+
+
+      template < typename T, typename... Args >
+      void VertexV2 (T x, T y, Args... args) {
+
+         VertexV2(x, y);
+
+         VertexV2(args...);
+      }
+
+
+      noret
+      VertexV3 (auto x, auto y, auto z) {
+
+         gl->Vertex3(x, y, z);
+      }
+
+      noret VertexV4 (auto x, auto y, auto z, auto w) {
+         gl->Vertex4(x, y, z, w);
+      }
+   };
+
+
+   auto color2f (auto green, auto blue) {
+      gl->glColor3f(0.0f, green, blue);
+   }
+   auto color3f (auto red, auto green, auto blue) {
+      gl->glColor3f(red, green, blue);
+   }
+
+   static auto VertexApi () {
+      return n_vertex();
+   }
+
+
+   constexpr auto DrawByMode (mode BMode, gmcolor colors, auto Fn) {
+      gl->glColor3f(colors.r, colors.g, colors.b);
+      gl->glBegin(GLenum(BMode));
+      Fn();
+      gl->glEnd();
+   }
+   auto DrawByMode (mode BMode, auto Fn) {
+      gl->glBegin(GLenum(BMode));
+      Fn();
+      gl->glEnd();
+   }
+};
+using gmVertex = gmGL::n_vertex;
