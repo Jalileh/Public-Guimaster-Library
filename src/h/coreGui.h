@@ -69,7 +69,7 @@ namespace coregui::visuals {
 #include "Canvas.h"
 
 namespace coregui::Backend {
-   // should not be fucking here
+   // should not be swear-wording here
    struct Init {
       bool pixelForm;
       int Session;
@@ -91,30 +91,28 @@ namespace vw = cg::visuals;
 namespace v = cg::visuals;
 
 
-
-
 namespace coregui::Api_types {
 
    using CallbackRenderFn = void (*)();
 
    namespace Design {
       typedef gmHandle (*family)(astr_DLL family_description);
-      typedef void (*widget)(astr_DLL  widget_description);
-      typedef void (*canvas)(astr_DLL  canvas_description, CallbackRenderFn renderSpace);
+      typedef void (*widget)(astr_DLL widget_description);
+      typedef void (*canvas)(astr_DLL canvas_description, CallbackRenderFn renderSpace);
 
-      typedef gmHandle (*container)(astr_DLL  window_description, CallbackRenderFn no_canvas_renderSpace);
+      typedef gmHandle (*container)(astr_DLL window_description, CallbackRenderFn no_canvas_renderSpace);
    }   // namespace Design
    namespace live {
-      typedef void (*Containers)(astr_DLL  Name_or_All);
+      typedef void (*Containers)(astr_DLL Name_or_All);
 
       using fusionData_Canvas = coregui::Fusion::decs::FusionObject
-      aptr_ (*)(astr_DLL  findbyName);
+      aptr_ (*)(astr_DLL findbyName);
 
       using Canvas_localFlags = visuals::Canvas::Flags
-      aptr_ (*)(astr_DLL  findbyName);
+      aptr_ (*)(astr_DLL findbyName);
 
-      using Container_ObjectData = visuals::winContainer _ptr (*)(astr_DLL  findbyName);
-      using Canvas_ObjectData = visuals::Canvas _ptr (*)(astr_DLL  findbyName);
+      using Container_ObjectData = visuals::winContainer _ptr (*)(astr_DLL findbyName);
+      using Canvas_ObjectData = visuals::Canvas _ptr (*)(astr_DLL findbyName);
 
    }   // namespace live
 
@@ -138,7 +136,7 @@ namespace coregui {
       Design_AP Design;
 
       struct RLive {
-         using FN_Visbility = noret (*)(astr_DLL  Name);
+         using FN_Visbility = noret (*)(astr_DLL Name);
          Api_types::live::Containers Execute_Container;
          noret (*GlobalHide)();
          noret (*GlobalShow)();

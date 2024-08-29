@@ -260,9 +260,9 @@ class UiMemory_Associater : private glob_identifiers {
 
 class gmVec2 {
  public:
-   gmVec2() : x(0), y(0){};
-   gmVec2(float X, float Y) : x(X), y(Y){};
-   float x, y;
+    gmVec2() :  x(0),y(0){};
+        gmVec2(float X, float Y) :  x(X),y(Y){};
+    float  x, y;
 };
 
 class gmBoolean {
@@ -273,8 +273,8 @@ class gmBoolean {
 
 class gmVec3 {
  public:
-   gmVec3() : x(0), y(0), z(0){};
-   gmVec3(float X, float Y, float Z) : x(X), y(Y), z(Z){};
+   gmVec3() : x(0), y (0) , z(0){};
+   gmVec3(float X, float Y, float Z) :  x(X),y(Y), z(Z){};
    float x, y, z;
 };
 struct gmStrings {
@@ -501,7 +501,7 @@ class gmComponent {
          0
       );
    }
-
+   
    noret el_slider_float (astr ed) {
 
       bool wasCreated = false;
@@ -694,7 +694,7 @@ class gmElements {
       }
 
 
-      // whats causing the swear-wording cle?
+      // whats causing the fucking cle?
       auto Process_visual_arg = elementDescription.ExtractWord(V_Token + "\a");
       if (ProcessVisual_OK(Process_visual_arg, elementDescription)) {
 
@@ -790,7 +790,7 @@ struct gmcolor {
 };
 class gmGL {
  public:
-   gmGL(){};
+   gmGL() {};
 
    enum class mode : uint {
       line_loop = GL_LINE_LOOP,
