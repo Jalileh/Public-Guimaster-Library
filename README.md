@@ -1,14 +1,16 @@
 # Public-Guimaster-Library
-A library module and a framework that I wrote to challenge my C++ knowledge last year and to try my attempts at creating a language-
-and to rewrite my graphics library.     
+Light-weight Graphics Library, module and a framework. Semi-open Source.
 
-
-The issues it does solve is lessen C++ code involved with drawing a button or an input box for example, 
-everything is interpreted and memory is allocated for these individual elements in case they are interactive and need to be handled when they fire,
-they are fetched through the gmapi interface e.g
+Cool features: 
+-- Custom scripting language for C++.
+-- Extensive WINAPI configs for cool overlays and modern UIs.
+-- high level UI design
+-- Minimal bloat and no dependency on GLFW
+-- Runtime scripting editor
+-- header only
 
 ```cpp
-
+     // INTERPRETER LANGUAGE EXAMPLE
  
       gmElements gme;
 
@@ -17,7 +19,7 @@ they are fetched through the gmapi interface e.g
       });
  
 
-    if (gm.awaitEnabled("SomeCheckBox"))
+     if (gm.awaitEnabled("SomeCheckBox"))
            .....
 
   astr widget_input_buffer = gm.awaitInput("SomeInput");
