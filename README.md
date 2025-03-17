@@ -1,13 +1,16 @@
-# Public-Guimaster-Library
-Light-weight Graphics Library, module and a framework. Semi-open Source.
+# Guimaster Library
 
-Cool features: 
--- Custom scripting language for C++.
--- Extensive WINAPI configs for cool overlays and modern UIs.
--- high level UI design
--- Minimal bloat and no dependency on GLFW
--- Runtime scripting editor
--- header only
+*A lightweight graphics library, module, and framework. Semi-open source.*
+
+## Cool Features
+- **Custom scripting language for C++**
+- **Extensive WINAPI configurations** for cool overlays and modern UIs
+- **High-level UI design**
+- **Minimal bloat** with no dependency on GLFW
+- **Runtime scripting editor**
+- **Header-only implementation**
+
+ 
 
 ```cpp
      // INTERPRETER LANGUAGE EXAMPLE
